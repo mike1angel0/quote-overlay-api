@@ -25,7 +25,7 @@ def generate_image():
     except:
         font = ImageFont.load_default()
 
-    # Word wrap logic
+    # Word wrapping
     max_width = 900
     lines = []
     words = quote.split()
@@ -41,13 +41,20 @@ def generate_image():
             line = word + " "
     lines.append(line.strip())
 
-    # Draw text on image
+    # Draw each line of text with shadow
     y = 800
     for line in lines:
         bbox = draw.textbbox((0, 0), line, font=font)
         w = bbox[2] - bbox[0]
         h = bbox[3] - bbox[1]
-        draw.text(((1080 - w) / 2, y), line, fill="white", font=font)
+        x = (1080 - w) / 2
+
+        # Shadow (black, offset)
+        draw.text((x + 2, y + 2), line, font=font, fill="black")
+
+        # Main text (white)
+        draw.text((x, y), line, font=font, fill="white")
+
         y += h + 10
 
     output = BytesIO()
