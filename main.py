@@ -11,34 +11,42 @@ def generate_image():
     image_url = data.get('image_url')
     quote = data.get('quote', '')
 
-    # Download the image
-    response = requests.get(image_url)
-    bg = Image.open(BytesIO(response.content)).convert("RGB")
+    try:
+        response = requests.get(image_url)
+        bg = Image.open(BytesIO(response.content)).convert("RGB")
+    except Exception as e:
+        return {"error": f"Failed to load image from URL. {str(e)}"}, 400
+
     bg = bg.resize((1080, 1080))
 
-    # Draw text
     draw = ImageDraw.Draw(bg)
-    font = ImageFont.load_default()
+    try:
+        font = ImageFont.truetype("DejaVuSans.ttf", 48)
+    except:
+        font = ImageFont.load_default()
 
-    # Word wrap
+    # Word wrap logic
     max_width = 900
     lines = []
     words = quote.split()
     line = ""
     for word in words:
         test_line = line + word + " "
-        if draw.textlength(test_line, font=font) <= max_width:
+        bbox = draw.textbbox((0, 0), test_line, font=font)
+        test_width = bbox[2] - bbox[0]
+        if test_width <= max_width:
             line = test_line
         else:
             lines.append(line.strip())
             line = word + " "
     lines.append(line.strip())
 
+    # Draw text on image
     y = 800
     for line in lines:
-       bbox = draw.textbbox((0, 0), line, font=font)
-w = bbox[2] - bbox[0]
-h = bbox[3] - bbox[1]
+        bbox = draw.textbbox((0, 0), line, font=font)
+        w = bbox[2] - bbox[0]
+        h = bbox[3] - bbox[1]
         draw.text(((1080 - w) / 2, y), line, fill="white", font=font)
         y += h + 10
 
