@@ -10,6 +10,7 @@ def generate_image():
     data = request.json
     image_url = data.get('image_url')
     quote = data.get('quote', '')
+    author = data.get('author', '')
 
     try:
         response = requests.get(image_url)
@@ -21,18 +22,19 @@ def generate_image():
     draw = ImageDraw.Draw(bg)
 
     try:
-        font = ImageFont.truetype("DejaVuSans.ttf", 48)
+        font_quote = ImageFont.truetype("DejaVuSans.ttf", 48)
+        font_author = ImageFont.truetype("DejaVuSans.ttf", 36)
     except:
-        font = ImageFont.load_default()
+        font_quote = font_author = ImageFont.load_default()
 
-    # Word wrapping
+    # Word wrapping for quote
     max_width = 900
     lines = []
     words = quote.split()
     line = ""
     for word in words:
         test_line = line + word + " "
-        bbox = draw.textbbox((0, 0), test_line, font=font)
+        bbox = draw.textbbox((0, 0), test_line, font=font_quote)
         test_width = bbox[2] - bbox[0]
         if test_width <= max_width:
             line = test_line
@@ -41,42 +43,51 @@ def generate_image():
             line = word + " "
     lines.append(line.strip())
 
-    # Estimate total text height
-    line_heights = []
+    # Estimate total text height (quote + spacing + author)
     total_height = 0
+    line_heights = []
     for line in lines:
-        bbox = draw.textbbox((0, 0), line, font=font)
+        bbox = draw.textbbox((0, 0), line, font=font_quote)
         h = bbox[3] - bbox[1]
         line_heights.append(h)
-        total_height += h + 10  # 10px line spacing
+        total_height += h + 10
 
-    # Coordinates for rectangle
+    if author:
+        bbox_author = draw.textbbox((0, 0), author, font=font_author)
+        author_height = bbox_author[3] - bbox_author[1]
+        total_height += author_height + 10  # spacing before author
+    else:
+        author_height = 0
+
+    # Draw semi-transparent background rectangle
     rect_y = 800
-    rect_height = total_height
-    rect = Image.new("RGBA", bg.size, (0, 0, 0, 0))  # Transparent image
+    rect = Image.new("RGBA", bg.size, (0, 0, 0, 0))
     rect_draw = ImageDraw.Draw(rect)
-
     rect_draw.rectangle(
-        [(0, rect_y - 20), (1080, rect_y + rect_height + 20)],
-        fill=(0, 0, 0, 150)  # Semi-transparent black
+        [(0, rect_y - 20), (1080, rect_y + total_height + 20)],
+        fill=(0, 0, 0, 150)
     )
     bg = Image.alpha_composite(bg.convert("RGBA"), rect)
 
-    # Draw text on top of rectangle
+    # Draw text
     draw = ImageDraw.Draw(bg)
     y = rect_y
     for i, line in enumerate(lines):
-        bbox = draw.textbbox((0, 0), line, font=font)
+        bbox = draw.textbbox((0, 0), line, font=font_quote)
         w = bbox[2] - bbox[0]
         h = bbox[3] - bbox[1]
         x = (1080 - w) / 2
-
-        # Shadow
-        draw.text((x + 2, y + 2), line, font=font, fill="black")
-        # Main text
-        draw.text((x, y), line, font=font, fill="white")
-
+        draw.text((x + 2, y + 2), line, font=font_quote, fill="black")
+        draw.text((x, y), line, font=font_quote, fill="white")
         y += h + 10
+
+    if author:
+        y += 10  # extra spacing before author
+        bbox = draw.textbbox((0, 0), author, font=font_author)
+        w = bbox[2] - bbox[0]
+        x = (1080 - w) / 2
+        draw.text((x + 2, y + 2), author, font=font_author, fill="black")
+        draw.text((x, y), author, font=font_author, fill="white")
 
     output = BytesIO()
     bg.convert("RGB").save(output, format='JPEG')
